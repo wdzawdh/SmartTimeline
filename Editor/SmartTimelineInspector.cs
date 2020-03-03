@@ -302,8 +302,8 @@ public class SmartTimelineInspector : Editor
         if (activeTrack == null) return;
         GameObject currentSelectObj = activeTrack.currentSelectObj;
         if (currentSelectObj == null) return;
-        float startPar = activeTrack.start;
-        float durationPar = activeTrack.duration;
+        float startPar = 0;
+        float durationPar = 1;
         if (editAnimator.length > 0)
         {
             startPar = activeTrack.start / editAnimator.length;
@@ -328,8 +328,8 @@ public class SmartTimelineInspector : Editor
         if (animTrack == null) return;
         AnimationClip animationClip = animTrack.currentAnimationClip;
         if (animationClip == null) return;
-        float startPar = animTrack.start;
-        float durationPar = animTrack.duration;
+        float startPar = 0;
+        float durationPar = 1;
         if (editAnimator.length > 0)
         {
             startPar = animTrack.start / editAnimator.length;
@@ -372,14 +372,16 @@ public class SmartTimelineInspector : Editor
         float s = startPar * mTotalWidth;
         float d = durationPar * mTotalWidth;
 
-        Debug.Log(d);
-
         EditorGUILayout.BeginHorizontal();
         GUILayout.Label(aduioClip.name, GUILayout.Width(progressLableWidth));
         GUILayoutUtility.GetRect(0, 18, GUILayout.Width(s));
         Rect rect = GUILayoutUtility.GetRect(0, 18, GUILayout.Width(d));
         GUI.color = new Color(255f / 255, 150f / 255, 150f / 255, 1f);
-        float loopNum = audioTrack.duration / aduioClip.length;
+        float loopNum = 1;
+        if (aduioClip.length > 0)
+        {
+            loopNum = audioTrack.duration / aduioClip.length;
+        }
         if (Math.Abs(loopNum - 1) < 0.01f)
         {
             EditorGUI.ProgressBar(rect, 1, aduioClip.name);
@@ -409,28 +411,6 @@ public class SmartTimelineInspector : Editor
     {
         if (editAnimator.isPlaying) return;
         editAnimator.Refresh();
-        editAnimator.allTracks.Sort((a, b) =>
-        {
-            if (a.groupIndex < b.groupIndex) return -1;
-            if (a.groupIndex > b.groupIndex) return 1;
-            if (a.groupIndex == b.groupIndex)
-            {
-                if (a.type < b.type) return -1;
-                if (a.type > b.type) return 1;
-                if (a.type == b.type)
-                {
-                    if (a.start < b.start) return -1;
-                    if (a.start > b.start) return 1;
-                    if (Math.Abs(a.start - b.start) < 0.0001f)
-                    {
-                        if (a.duration < b.duration) return -1;
-                        if (a.duration > b.duration) return 1;
-                        return 0;
-                    }
-                }
-            }
-            return 0;
-        });
     }
 
     /// <summary>

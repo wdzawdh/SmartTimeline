@@ -129,15 +129,15 @@ public class SmartTimeline : MonoBehaviour
                 int position = (int) (normalizedTime * audioTrack.audioClip.length * 1000);
                 if (loopIndex >= audioTrack.loopIndex)
                 {
-                    if (audioTrack.soundingAudio != null)
-                    {
-                        audioTrack.soundingAudio.Stop();
-                        audioTrack.soundingAudio = null;
-                    }
-                    AudioSource audioSource = audioTrack.currentSelectObj.GetComponent<AudioSource>();
+                    AudioSource audioSource = audioTrack.soundingAudio;
                     if (audioSource == null)
                     {
-                        audioSource = audioTrack.currentSelectObj.AddComponent<AudioSource>();
+                        audioSource = audioTrack.currentSelectObj.GetComponent<AudioSource>();
+                        if (audioSource == null)
+                        {
+                            audioSource = audioTrack.currentSelectObj.AddComponent<AudioSource>();
+                        }
+                        audioTrack.soundingAudio = audioSource;
                     }
                     if (isPlaying)
                     {
@@ -147,7 +147,6 @@ public class SmartTimeline : MonoBehaviour
                         audioSource.volume = 1f;
                         audioSource.time = (float) position / 1000;
                         audioSource.Play();
-                        audioTrack.soundingAudio = audioSource;
                     }
                     else
                     {
@@ -234,11 +233,23 @@ public class SmartTimeline : MonoBehaviour
         {
             AnimTrack animTrack = (AnimTrack) outTrack;
             animTrack.loopIndex = 0;
+            if (Application.isPlaying)
+            {
+                if (animTrack.runtimeAnimator != null)
+                {
+                    animTrack.runtimeAnimator.speed = 0;
+                }
+            }
         }
         if (outTrack is AudioTrack)
         {
             AudioTrack audioTrack = (AudioTrack) outTrack;
             audioTrack.loopIndex = 0;
+            if (audioTrack.soundingAudio != null)
+            {
+                audioTrack.soundingAudio.Stop();
+                audioTrack.soundingAudio = null;
+            }
         }
     }
 
@@ -277,9 +288,31 @@ public class SmartTimeline : MonoBehaviour
             return;
         }
         allTracks.Clear();
-        allTracks.AddRange(activeTracks);
+        allTracks.AddRange(activeTracks); //c# 4.0
         allTracks.AddRange(animTracks);
         allTracks.AddRange(audioTracks);
+        allTracks.Sort((a, b) =>
+        {
+            if (a.groupIndex < b.groupIndex) return -1;
+            if (a.groupIndex > b.groupIndex) return 1;
+            if (a.groupIndex == b.groupIndex)
+            {
+                if (a.type < b.type) return -1;
+                if (a.type > b.type) return 1;
+                if (a.type == b.type)
+                {
+                    if (a.start < b.start) return -1;
+                    if (a.start > b.start) return 1;
+                    if (Math.Abs(a.start - b.start) < 0.0001f)
+                    {
+                        if (a.duration < b.duration) return -1;
+                        if (a.duration > b.duration) return 1;
+                        return 0;
+                    }
+                }
+            }
+            return 0;
+        });
         float end = 0;
         foreach (var baseTrack in allTracks)
         {
@@ -351,7 +384,10 @@ public class SmartTimeline : MonoBehaviour
         PlayTrack();
         mIsInfluence = false;
         ResetState();
-        playEndCallback?.Invoke();
+        if (playEndCallback != null)
+        {
+            playEndCallback.Invoke();
+        }
         if (!Application.isPlaying)
         {
 #if UNITY_EDITOR
@@ -477,11 +513,12 @@ public class SmartTimeline : MonoBehaviour
     public static void ReplaceAnimClip(AnimTrack orgTrack, GameObject replaceGameObject, AnimationClip clip)
     {
         if (orgTrack == null || clip == null || replaceGameObject == null) return;
+        float loopNum = orgTrack.duration / orgTrack.currentAnimationClip.length;
         orgTrack.currentSelectObj = replaceGameObject;
         orgTrack.orgLocalPosition = replaceGameObject.transform.localPosition;
         orgTrack.runtimeAnimator = null;
         orgTrack.currentAnimationClip = clip;
-        orgTrack.duration = clip.length;
+        orgTrack.duration = clip.length * loopNum;
     }
 
     private RuntimeAnimatorController SetAnimOverrideController(Animator animator, AnimationClip animationClip)
